@@ -256,6 +256,7 @@ footer.foot{padding:30px 0 40px;color:var(--muted);font-size:12px;text-align:cen
 const CFG = window.SPOTPLAN_CONFIG;
 const SB_KEY = CFG.SUPABASE_KEY || CFG.SUPABASE_ANON_KEY || '';
 const DEMO = !CFG.SUPABASE_URL || !SB_KEY;
+const BRAND = CFG.BRAND_NAME || 'SpotStudio';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -633,7 +634,7 @@ function topbar(kind) {
   if (kind === 'studio') {
     const h = location.hash;
     return `<header class="top"><div class="wrap">
-      <a class="brand" href="#/studio">${logoSvg()}<b>SPOTPLAN</b><span>스튜디오</span></a>
+      <a class="brand" href="#/studio">${logoSvg()}<b>${esc(BRAND)}</b><span>${esc(CFG.LABEL_STUDIO || '온라인 기획서')}</span></a>
       <nav class="nav"><a href="#/studio" class="${h === '#/studio' || h.startsWith('#/studio/p') ? 'on' : ''}">요청 목록</a>
       ${S.me && S.me.role === 'admin' ? `<a href="#/studio/data" class="${h.startsWith('#/studio/data') ? 'on' : ''}">데이터 관리</a>` : ''}</nav>
       <span class="spacer"></span>${demo}
@@ -641,7 +642,7 @@ function topbar(kind) {
     </div></header>`;
   }
   return `<header class="top"><div class="wrap narrow" style="max-width:${kind === 'customer' ? '1080px' : '640px'}">
-    <span class="brand">${logoSvg()}<b>SPOTPLAN</b><span>${esc(CFG.STUDIO_NAME)}</span></span><span class="spacer"></span>${demo}</div></header>`;
+    <span class="brand">${logoSvg()}<b>${esc(BRAND)}</b><span>${esc(CFG.LABEL_CUSTOMER || '고객 요청서')}</span></span><span class="spacer"></span>${demo}</div></header>`;
 }
 function bindTop() { const b = $('#logout'); if (b) b.onclick = async () => { await DB.signOut(); S.me = null; location.hash = '#/studio'; route(); }; }
 
