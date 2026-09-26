@@ -5,6 +5,7 @@
    자세한 방법: SETUP_GUIDE.md 8장
    ===================================================================== */
 window.SPOTPLAN_CONFIG = {
+  APP_VERSION: 'v1.1',            // 앱 버전 (실장 화면 상단·사용자 매뉴얼에 표시). 기능을 바꿔 배포할 때 올립니다.
   SUPABASE_URL: 'https://ornuemfdueukfedkehyh.supabase.co',
   SUPABASE_KEY: 'sb_publishable_0nOlUcOaXbh-G-Mfkb_apw_3SIvpjEC', // Publishable key (sb_publishable_… 로 시작). 공개돼도 되는 키입니다. Secret key는 절대 넣지 마세요.
   STUDIO_NAME: '스팟스튜디오',
