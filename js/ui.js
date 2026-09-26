@@ -12,7 +12,7 @@ function topbar(kind) {
     return `<header class="top"><div class="wrap">
       <a class="brand" href="#/studio">${logoSvg()}<b>${esc(BRAND)}</b><span>촬영팀</span></a><span class="ver" title="SPOTPLAN 앱 버전">${esc(APP_VERSION)}</span>
       <nav class="nav"><a href="#/studio" class="on">인계받은 촬영</a></nav>
-      <span class="spacer"></span>${demo}<span class="small muted">${esc(S.me.name || S.me.email)}</span><button class="btn ghost sm" id="logout">로그아웃</button>
+      <span class="spacer"></span>${demo}<span class="small muted">${esc(S.me.name || S.me.email)}</span><button class="btn ghost sm" id="mypw">비밀번호</button><button class="btn ghost sm" id="logout">로그아웃</button>
     </div></header>`;
   }
   if (kind === 'studio') {
@@ -20,15 +20,15 @@ function topbar(kind) {
     return `<header class="top"><div class="wrap">
       <a class="brand" href="#/studio">${logoSvg()}<b>${esc(BRAND)}</b><span>${esc(CFG.LABEL_STUDIO || '온라인 기획서')}</span></a><span class="ver" title="SPOTPLAN 앱 버전">${esc(APP_VERSION)}</span>
       <nav class="nav"><a href="#/studio" class="${h === '#/studio' || h.startsWith('#/studio/p') ? 'on' : ''}">요청 목록</a>
-      ${S.me && S.me.role === 'admin' ? `<a href="#/studio/crew" class="${h.startsWith('#/studio/crew') ? 'on' : ''}">촬영팀</a><a href="#/studio/data" class="${h.startsWith('#/studio/data') ? 'on' : ''}">데이터 관리</a>` : ''}</nav>
+      ${S.me && S.me.role === 'admin' ? `<a href="#/studio/accounts" class="${h.startsWith('#/studio/accounts') || h.startsWith('#/studio/crew') ? 'on' : ''}">계정 관리</a><a href="#/studio/data" class="${h.startsWith('#/studio/data') ? 'on' : ''}">데이터 관리</a>` : ''}</nav>
       <span class="spacer"></span>${demo}
-      ${S.me ? `<span class="small muted">${esc(S.me.name || S.me.email)}</span><button class="btn ghost sm" id="logout">로그아웃</button>` : ''}
+      ${S.me ? `<span class="small muted">${esc(S.me.name || S.me.email)}</span><button class="btn ghost sm" id="mypw">비밀번호</button><button class="btn ghost sm" id="logout">로그아웃</button>` : ''}
     </div></header>`;
   }
   return `<header class="top"><div class="wrap narrow" style="max-width:${kind === 'customer' ? '1080px' : '640px'}">
     <span class="brand">${logoSvg()}<b>${esc(BRAND)}</b><span>${esc(CFG.LABEL_CUSTOMER || '고객 요청서')}</span></span><span class="spacer"></span>${demo}</div></header>`;
 }
-function bindTop() { const b = $('#logout'); if (b) b.onclick = async () => { await DB.signOut(); S.me = null; location.hash = '#/studio'; route(); }; }
+function bindTop() { const pw = $('#mypw'); if (pw) pw.onclick = myPasswordModal; const b = $('#logout'); if (b) b.onclick = async () => { await DB.signOut(); S.me = null; location.hash = '#/studio'; route(); }; }
 
 /* 라이트박스 */
 function openLightbox(list, idx) {
