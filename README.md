@@ -3,7 +3,7 @@
 스팟스튜디오의 **온라인 요청서 · 회차별 제안서** 웹앱입니다.
 
 - **고객**
-  - 30초짜리 최소 요청서를 작성합니다.
+  - 30초짜리 최소 요청서를 작성합니다. 참고 파일(제품 사진, 기획안 등)도 첨부할 수 있습니다.
   - 상담 후 받은 **비밀 링크**(로그인 없음)에서 요청 내용을 확인합니다.
   - 차수별 샘플 중 마음에 드는 안을 골라 의견과 함께 보냅니다.
 - **스튜디오(실장·직원)**
@@ -16,6 +16,8 @@
 | 파일 | 역할 |
 |---|---|
 | `index.html` | 앱 전체 (GitHub Pages로 배포) |
+| `config.js` | 설정값 (Supabase 주소·키, 스튜디오 이름·전화번호, 개인정보 문구) |
+| `SETUP_GUIDE.md` | Supabase 설정 가이드 (처음 쓰는 분용) |
 | `supabase/setup.sql` | 데이터베이스·권한·고객용 함수·사진 저장소 설정 |
 | `supabase/functions/extract-call/index.ts` | 통화 텍스트 → 요청서 정리 (Claude API) |
 | `supabase/functions/photo-search/index.ts` | 무료 사진 검색 (Unsplash·Pexels) |
@@ -33,7 +35,7 @@
 
 ## 1. 시험 모드 (지금 바로 써 보기)
 
-`index.html`의 `SUPABASE_URL`이 비어 있으면 **시험 모드**로 동작합니다.
+`config.js`의 `SUPABASE_URL`이 비어 있으면 **시험 모드**로 동작합니다.
 
 - 데이터는 그 브라우저 안에만 저장되고, 다른 기기와 공유되지 않습니다.
 - 스튜디오 로그인은 아무 이메일이나 입력하면 됩니다.
@@ -42,56 +44,21 @@
 
 ## 2. Supabase 연결 (실제 운영)
 
-> 계정은 **앱을 운영할 사람(스튜디오) 명의**로 만드는 것을 권장합니다. 요금 결제와 고객 개인정보의 주인이 운영자이기 때문입니다.
+처음 쓰는 분도 따라 할 수 있게 **[SETUP_GUIDE.md](SETUP_GUIDE.md)**에 단계별로 정리했습니다.
 
-### 2-1. 프로젝트 만들기
+요약하면 아래 순서입니다.
 
-1. https://supabase.com 에서 가입하고 **New project**를 누릅니다.
-   - Region: **Northeast Asia (Seoul)** — 나중에 바꿀 수 없습니다.
-   - Plan: Free로 시작합니다. 실제 고객에게 링크를 보내기 시작할 때 Pro로 올립니다.
-2. **SQL Editor → New query**를 엽니다.
-   - `supabase/setup.sql` 전체를 붙여넣습니다.
-   - 맨 아래 `CHANGE_ME@example.com`을 실장님 로그인 이메일로 바꿉니다.
-   - **Run**을 누릅니다.
-3. 직원 계정을 만듭니다.
-   - **Authentication → Users → Add user → Create new user**를 누릅니다.
-   - 이메일과 비밀번호를 입력하고 *Auto Confirm User*를 체크합니다.
-   - 직원을 더 넣으려면 SQL Editor에서 아래를 실행합니다.
-     `insert into staff (email, name, role) values ('직원@이메일', '이름', 'staff');`
-4. **Authentication → Sign In / Providers**에서 *Allow new users to sign up*을 **끕니다**. 아무나 가입하지 못하게 하기 위해서입니다.
-5. **Project Settings → API**에서 두 값을 복사해 둡니다.
-   - Project URL
-   - `anon` `public` key
-
-### 2-2. Edge Function 2개 올리기
-
-1. **Edge Functions → Deploy a new function → Via Editor**를 누릅니다.
-2. 함수 이름을 `extract-call`로 하고, `supabase/functions/extract-call/index.ts` 내용을 붙여넣은 뒤 **Deploy**를 누릅니다.
-3. 같은 방법으로 `photo-search` 함수를 올립니다.
-4. **Edge Functions → Secrets**에 아래 값을 넣습니다.
-
-| 이름 | 값 | 발급처 |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Claude API 키 | console.anthropic.com → API Keys (Settings → Limits에서 **월 한도 설정** 권장) |
-| `UNSPLASH_ACCESS_KEY` | Access Key | unsplash.com/developers → New Application (시험용은 시간당 50회, 승인 후 1,000회) |
-| `PEXELS_API_KEY` | API Key | pexels.com/api (시간당 200회, 월 2만 회) |
-| `CLAUDE_MODEL` (선택) | 예: `claude-sonnet-4-5` | 비우면 기본값 |
-
-### 2-3. 앱에 연결하고 배포
-
-1. `index.html` 윗부분의 `SPOTPLAN_CONFIG`를 채웁니다.
-   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`를 넣습니다.
-   - 필요하면 `RENTAL_URL`, `CONTACT_PROMISE`, `PRIVACY_RETENTION`도 바꿉니다.
-   - anon key는 공개되어도 되는 값입니다. 데이터는 `setup.sql`의 권한 설정(RLS)이 보호합니다.
-2. GitHub 저장소의 **Settings → Pages**에서 Source를 *Deploy from a branch*로 하고, `main` / `(root)`를 고릅니다.
-   - 무료 계정은 **공개 저장소**에서만 Pages를 쓸 수 있습니다.
-   - 코드에는 비밀 값이 없습니다. Claude·사진 API 키는 Supabase Secrets에만 있습니다.
-3. 1~2분 뒤 `https://<계정>.github.io/spotplan/#/studio`에서 로그인합니다.
+1. Supabase 가입 → 서울 리전 프로젝트 만들기 (운영자 명의 권장)
+2. SQL Editor에서 `supabase/setup.sql` 실행 (맨 아래 관리자 이메일 수정)
+3. 직원 로그인 계정 만들기, 공개 가입 끄기
+4. Edge Function 2개(`extract-call`, `photo-search`) 올리고 "Verify JWT with legacy secret" 끄기
+5. Secrets에 `ANTHROPIC_API_KEY`, `UNSPLASH_ACCESS_KEY`, `PEXELS_API_KEY` 저장
+6. `config.js`의 `SUPABASE_URL`, `SUPABASE_KEY`(Publishable key) 채우기
+7. GitHub Pages 켜기
 
 ## 3. 운영 전에 확인할 것
 
 - [ ] 개인정보 동의 문구의 **보관 기간**(`PRIVACY_RETENTION`, 현재 초안값)과 문구 전체를 법인 기준으로 확정
-- [ ] 제출 완료 화면의 **연락 약속 시간**(`CONTACT_PROMISE`) 확정
 - [ ] 아워플레이스 예약 페이지 주소(`RENTAL_URL`)
 - [ ] 통화 녹음을 쓸 경우 고객에게 녹음 사실을 알리는 방식
 - [ ] Anthropic 콘솔에서 월 사용 한도 설정
@@ -100,7 +67,7 @@
 ## 4. 직원용 사용 순서
 
 1. **요청 목록**
-   - 새 요청은 "신규 요청"으로 표시됩니다.
+   - 새 요청은 "신규 요청"으로 표시됩니다. 첨부 파일이 있으면 "첨부 n"이 붙고, 요청서 탭 왼쪽에서 보거나 받을 수 있습니다.
    - "상세 n개" 표시는 고객이 선택 항목까지 적었다는 뜻입니다. 이런 요청을 먼저 연락하면 좋습니다.
 2. **전화 상담**
    - 통화 메모나 녹음 받아쓰기 텍스트를 **통화 내용 정리** 칸에 붙여넣고 **Claude로 정리**를 누릅니다.
@@ -129,7 +96,8 @@
 
 ## 5. 알려진 한계
 
-- 고객 요청서에서 파일 첨부는 받지 않습니다. 사진이 필요하면 카톡이나 이메일로 받습니다.
+- 고객 첨부 파일은 파일당 20MB, 최대 10개입니다. 비공개 저장소에 저장되고 직원만 열 수 있습니다(1시간짜리 임시 링크).
+- 요청서를 제출하지 않고 창을 닫으면, 이미 올라간 첨부 파일이 저장소에 남을 수 있습니다(가끔 Storage에서 정리).
 - 같은 칸을 두 사람이 동시에 고치면 마지막 저장이 남습니다.
 - 고객 링크를 아는 사람은 누구나 제안서를 볼 수 있습니다. 유출이 의심되면 **⋯ → 고객 링크 재발급**을 누르세요.
 - 사진 검색 결과는 Unsplash·Pexels 주소를 그대로 씁니다(각 사이트 규정). 업로드한 사진만 Supabase 저장소에 저장됩니다.
