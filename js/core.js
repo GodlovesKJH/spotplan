@@ -6,7 +6,7 @@ const CFG = window.SPOTPLAN_CONFIG;
 const SB_KEY = CFG.SUPABASE_KEY || CFG.SUPABASE_ANON_KEY || '';
 const DEMO = !CFG.SUPABASE_URL || !SB_KEY;
 const BRAND = CFG.BRAND_NAME || 'SpotStudio';
-const APP_VERSION = CFG.APP_VERSION || 'v1.1';
+const APP_VERSION = CFG.APP_VERSION || 'v1.2';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -140,7 +140,11 @@ function makeSupabaseDB() {
     async confirmRequest(token) { chk(await sb.rpc('confirm_request', { p_token: token })); },
 
     async session() { const { data } = await sb.auth.getSession(); return data.session; },
-    async signIn(email, pw) { const { error } = await sb.auth.signInWithPassword({ email, password: pw }); if (error) throw new Error(error.message === 'Invalid login credentials' ? '이메일 또는 비밀번호가 맞지 않습니다.' : error.message); },
+    async signIn(email, pw) { const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (error) throw new Error(error.message === 'Invalid login credentials' ? '이메일 또는 비밀번호가 맞지 않습니다.' : /banned/i.test(error.message) ? '사용 중지된 계정입니다. 실장에게 문의하세요.' : error.message); },
+    async changePassword(pw) { const { error } = await sb.auth.updateUser({ password: pw });
+      if (error) throw new Error(/different from the old/i.test(error.message) ? '지금 비밀번호와 다른 비밀번호를 넣어 주세요.' : /weak|at least/i.test(error.message) ? '비밀번호가 너무 쉽습니다. 더 길게 정해 주세요.' : error.message); },
+    async adminUsers(action, body = {}) { return this.fn('admin-users', { action, ...body }); },
     async signOut() { await sb.auth.signOut(); },
     async whoami() { return chk(await sb.rpc('whoami')); },
 
