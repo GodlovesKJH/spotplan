@@ -19,7 +19,8 @@
 
 | 파일 | 역할 |
 |---|---|
-| `index.html` | 앱 전체 (GitHub Pages로 배포) |
+| `index.html` | 화면 틀·디자인(CSS). GitHub Pages로 배포 |
+| `js/*.js` | 앱 동작 (core 공통 · demo 시험 모드 · ui 화면 틀 · customer 고객 · studio 스튜디오 · proposal 제안서 · shoot 촬영팀·납품·결제). 고친 뒤 `index.html`의 `?v=` 값을 올리세요 |
 | `config.js` | 설정값 (Supabase 주소·키, 스튜디오 이름·전화번호, 개인정보 문구) |
 | `SETUP_GUIDE.md` | Supabase 설정 가이드 (처음 쓰는 분용) |
 | `SETUP_V1.1.md` | v1.1 추가 설정 (SQL 실행, 촬영팀 계정) |
