@@ -115,7 +115,7 @@ async function handoffModal() {
   const m = modal(`<h2>촬영팀 인계</h2><p class="small muted" style="margin:-6px 0 12px">확정 촬영 목록 ${shots.length}컷과 아래 내용이 촬영팀 화면에 전달됩니다. 고객 연락처는 넘어가지 않습니다.</p>
     <div class="stack">
       <div><label class="f req">촬영팀</label>${crew.length ? `<div class="radios">${crew.map(c => `<label><input type="checkbox" data-crew="${esc(c.email)}" ${sel.has(c.email) ? 'checked' : ''}>${esc(c.name || c.email)} <span class="small muted">${esc(c.part || '')}</span></label>`).join('')}</div>`
-        : `<p class="small accent">등록된 촬영팀이 없습니다. 관리자가 상단 <b>촬영팀</b> 메뉴에서 먼저 등록하세요.</p>`}</div>
+        : `<p class="small accent">등록된 촬영팀이 없습니다. 관리자(실장)가 상단 <b>계정 관리</b>에서 촬영팀 계정을 먼저 만드세요.</p>`}</div>
       <div class="grid2"><div><label class="f">촬영일</label><input type="date" id="h-date" value="${esc(h ? h.shoot_date || '' : '')}"></div>
         <div><label class="f">시간</label><input type="text" id="h-time" value="${esc(h ? h.shoot_time : '')}" placeholder="예: 10:00~17:00"></div></div>
       <div><label class="f">장소</label><input type="text" id="h-loc" value="${esc(h ? h.location : SHOOT_LOCATION)}"></div>
@@ -167,33 +167,6 @@ function uploadResults(pid, shotlist, after, fixedLabel) {
     };
     inp.click();
   });
-}
-
-/* ---------- 관리자: 촬영팀 계정 ---------- */
-async function renderCrewAdmin() {
-  document.title = '촬영팀 · SPOTPLAN';
-  app.innerHTML = topbar('studio') + `<main class="wrap" style="padding-top:24px;padding-bottom:40px">
-    <p class="sec-title">촬 영 팀</p><h1 class="page-title">촬영팀 계정</h1>
-    <p class="muted">여기에 등록된 이메일로 로그인하면 <b>촬영팀 화면</b>(인계받은 촬영 목록, 결과 사진 올리기)만 보입니다. 고객 연락처와 다른 프로젝트는 보이지 않습니다.</p>
-    <div id="clist" style="margin-top:16px"><div class="empty"><span class="spin"></span></div></div></main>`;
-  bindTop();
-  if (!S.me || S.me.role !== 'admin') { $('#clist').innerHTML = '<div class="empty">관리자만 사용할 수 있습니다.</div>'; return; }
-  let list = []; try { list = await DB.listCrew(); } catch (e) { $('#clist').innerHTML = `<div class="empty">불러오지 못했습니다: ${esc(e.message)}<br><span class="small">Supabase에 update_v1.1.sql을 실행했는지 확인하세요.</span></div>`; return; }
-  $('#clist').innerHTML = `<div class="card"><table class="items-table crewt"><thead><tr><th>이름</th><th>이메일(로그인)</th><th>담당</th><th>연락처</th><th>사용</th><th></th></tr></thead><tbody>
-    ${list.map(c => `<tr data-ce="${esc(c.email)}"><td><input type="text" data-ck="name" value="${esc(c.name)}"></td><td class="small">${esc(c.email)}</td>
-      <td><input type="text" data-ck="part" value="${esc(c.part)}"></td><td><input type="text" data-ck="phone" value="${esc(c.phone)}"></td>
-      <td><input type="checkbox" data-ck="active" ${c.active ? 'checked' : ''}></td><td><button class="btn sm ghost" data-cdel="${esc(c.email)}" style="color:var(--accent)">삭제</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted small">등록된 촬영팀이 없습니다</td></tr>'}
-    <tr class="newrow"><td><input type="text" id="cn-name" placeholder="이름"></td><td><input type="email" id="cn-email" placeholder="login@example.com"></td>
-      <td><input type="text" id="cn-part" value="사진"></td><td><input type="text" id="cn-phone" placeholder="010-"></td><td></td><td><button class="btn sm primary" id="cn-add">추가</button></td></tr></tbody></table>
-    <div class="notice small" style="margin-top:14px"><b>로그인 계정 만들기</b> · 명단에 추가한 뒤, Supabase 대시보드 → <b>Authentication → Users → Add user</b>에서 같은 이메일과 비밀번호로 계정을 만들어 촬영팀에게 알려 주세요.
-      촬영팀 주소는 실장 화면과 같습니다: <code>${esc(location.origin + location.pathname)}#/studio</code></div></div>`;
-  const save = debounce(async (tr) => { const e = tr.dataset.ce; const o = { email: e }; $$('[data-ck]', tr).forEach(i => o[i.dataset.ck] = i.type === 'checkbox' ? i.checked : i.value.trim()); try { await DB.saveCrew(o); toast('저장했습니다', 1200); } catch (ex) { fail(ex); } }, 600);
-  $$('[data-ce]').forEach(tr => $$('[data-ck]', tr).forEach(i => { i.oninput = () => save(tr); i.onchange = () => save.flush(tr); }));
-  $$('[data-cdel]').forEach(b => b.onclick = () => twoClick(b, async () => { await DB.deleteCrew(b.dataset.cdel); renderCrewAdmin(); }, '삭제?'));
-  $('#cn-add').onclick = async () => {
-    const email = $('#cn-email').value.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(email)) return toast('이메일을 확인하세요');
-    try { await DB.saveCrew({ email, name: $('#cn-name').value.trim(), part: $('#cn-part').value.trim() || '사진', phone: $('#cn-phone').value.trim(), active: true }); renderCrewAdmin(); } catch (e) { fail(e); }
-  };
 }
 
 /* ---------- 촬영팀 화면 ---------- */
