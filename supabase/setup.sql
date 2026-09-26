@@ -119,6 +119,9 @@ create table if not exists public.logs (
   text       text not null default ''
 );
 
+-- 고객 첨부 파일 목록 [{path, name, size, type}] (나중에 추가된 칸)
+alter table public.projects add column if not exists attachments jsonb not null default '[]'::jsonb;
+
 create index if not exists rounds_project_idx  on public.rounds(project_id);
 create index if not exists samples_project_idx on public.samples(project_id);
 create index if not exists samples_round_idx   on public.samples(round_id);
@@ -146,6 +149,13 @@ create trigger rounds_touch after insert or update or delete on public.rounds
 drop trigger if exists samples_touch on public.samples;
 create trigger samples_touch after insert or update or delete on public.samples
   for each row execute function public.touch_project();
+
+-- 테이블 사용 권한: 로그인한 직원(authenticated)만. 익명(anon)은 테이블에 직접 접근 불가.
+-- (2026년 5월 이후 만든 Supabase 프로젝트는 이 권한을 직접 줘야 합니다)
+grant usage on schema public to anon, authenticated;
+revoke all on public.staff, public.projects, public.rounds, public.samples, public.logs from anon;
+grant select, insert, update, delete on public.staff, public.projects, public.rounds, public.samples, public.logs to authenticated, service_role;
+grant usage, select on sequence public.logs_id_seq to authenticated, service_role;
 
 -- ---------------------------------------------------------------------
 -- 3. 권한(RLS): 테이블은 직원만. 고객은 아래 4개 함수로만 접근.
@@ -190,6 +200,9 @@ declare
   v_phone   text := left(trim(coalesce(p->>'phone','')), 40);
   v_email   text := left(trim(coalesce(p->>'email','')), 200);
   v_intake  jsonb := coalesce(p->'intake', '{}'::jsonb);
+  v_att_in  jsonb := coalesce(p->'attachments', '[]'::jsonb);
+  v_att     jsonb := '[]'::jsonb;
+  a         jsonb;
   v_id      uuid;
 begin
   if v_purpose not in ('detail','ad','sns','film','direction','rental') then
@@ -204,14 +217,28 @@ begin
   if length(v_intake::text) > 6000 then
     raise exception 'too long';
   end if;
+  -- 첨부 파일: 최대 10개, 고객 업로드 폴더(req/) 경로만 허용
+  if jsonb_typeof(v_att_in) <> 'array' or jsonb_array_length(v_att_in) > 10 then
+    raise exception 'bad attachments';
+  end if;
+  for a in select * from jsonb_array_elements(v_att_in) loop
+    if coalesce(a->>'path','') !~ '^req/[0-9a-f-]{36}/[0-9]{1,2}\.[a-z0-9]{1,8}$' then
+      raise exception 'bad attachment path';
+    end if;
+    v_att := v_att || jsonb_build_array(jsonb_build_object(
+      'path', a->>'path',
+      'name', left(coalesce(a->>'name','파일'), 200),
+      'size', coalesce((a->>'size')::bigint, 0),
+      'type', left(coalesce(a->>'type',''), 100)));
+  end loop;
   -- 과도한 자동 제출 방지: 최근 10분 동안 60건 넘으면 거부
   if (select count(*) from public.projects where created_at > now() - interval '10 minutes') > 60 then
     raise exception 'too many requests';
   end if;
 
-  insert into public.projects (purpose, company, contact_name, phone, email, consent_at, intake, source)
+  insert into public.projects (purpose, company, contact_name, phone, email, consent_at, intake, source, attachments)
   values (v_purpose, left(trim(coalesce(p->>'company','')), 100), v_name, v_phone, v_email, now(),
-          v_intake, left(coalesce(p->>'source',''), 60))
+          v_intake, left(coalesce(p->>'source',''), 60), v_att)
   returning id into v_id;
 
   insert into public.logs (project_id, who, text) values (v_id, '고객', '온라인 요청서 접수');
@@ -340,9 +367,14 @@ end $$;
 do $$
 begin
   if exists (select 1 from information_schema.schemata where schema_name = 'storage') then
+    -- 제안서 샘플 사진: 공개 버킷 (주소를 아는 사람은 볼 수 있음)
     insert into storage.buckets (id, name, public)
     values ('samples', 'samples', true)
     on conflict (id) do nothing;
+    -- 고객 첨부 파일: 비공개 버킷, 파일당 20MB
+    insert into storage.buckets (id, name, public, file_size_limit)
+    values ('attachments', 'attachments', false, 20971520)
+    on conflict (id) do update set public = false, file_size_limit = 20971520;
 
     drop policy if exists "spotplan staff upload" on storage.objects;
     drop policy if exists "spotplan staff update" on storage.objects;
@@ -353,6 +385,17 @@ begin
       using (bucket_id = 'samples' and public.is_staff());
     create policy "spotplan staff delete" on storage.objects for delete to authenticated
       using (bucket_id = 'samples' and public.is_staff());
+
+    -- 고객은 첨부 파일 올리기만 가능(보기·지우기 불가), 직원은 보기·지우기 가능
+    drop policy if exists "spotplan customer attach" on storage.objects;
+    drop policy if exists "spotplan staff attach read" on storage.objects;
+    drop policy if exists "spotplan staff attach delete" on storage.objects;
+    create policy "spotplan customer attach" on storage.objects for insert to anon, authenticated
+      with check (bucket_id = 'attachments' and name like 'req/%');
+    create policy "spotplan staff attach read" on storage.objects for select to authenticated
+      using (bucket_id = 'attachments' and public.is_staff());
+    create policy "spotplan staff attach delete" on storage.objects for delete to authenticated
+      using (bucket_id = 'attachments' and public.is_staff());
   end if;
 end $$;
 
