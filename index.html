@@ -7,22 +7,7 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='%234A4A4A'%3E%3Ccircle cx='2' cy='2' r='1.4'/%3E%3Ccircle cx='6' cy='2' r='1.4'/%3E%3Ccircle cx='10' cy='2' r='1.4'/%3E%3Ccircle cx='14' cy='2' r='1.4'/%3E%3Ccircle cx='2' cy='6' r='1.4'/%3E%3Ccircle cx='6' cy='6' r='1.4'/%3E%3Ccircle cx='10' cy='6' r='1.4'/%3E%3Ccircle cx='14' cy='6' r='1.4'/%3E%3Ccircle cx='2' cy='10' r='1.4'/%3E%3Ccircle cx='6' cy='10' r='1.4'/%3E%3Ccircle cx='10' cy='10' r='1.4'/%3E%3Ccircle cx='14' cy='10' r='1.4'/%3E%3Ccircle cx='2' cy='14' r='1.4'/%3E%3Ccircle cx='6' cy='14' r='1.4'/%3E%3Ccircle cx='10' cy='14' r='1.4'/%3E%3Ccircle cx='14' cy='14' r='1.4'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<script>
-/* =====================================================================
-   SPOTPLAN 설정 — Supabase 를 만든 뒤 아래 두 값만 채우면 실제 운영 모드가 됩니다.
-   비워 두면 "시험 모드"(이 브라우저 안에만 저장)로 동작합니다.
-   ===================================================================== */
-window.SPOTPLAN_CONFIG = {
-  SUPABASE_URL: '',        // 예: https://abcdefgh.supabase.co
-  SUPABASE_ANON_KEY: '',   // Supabase → Project Settings → API → anon public key
-  STUDIO_NAME: '스팟스튜디오',
-  STUDIO_PHONE: '02-6080-9777',
-  CONTACT_PROMISE: '영업일 기준 24시간 안에 연락드립니다.',
-  RENTAL_URL: '',          // 아워플레이스 스팟스튜디오 페이지 주소 (비우면 안내 문구만 표시)
-  PRIVACY_RETENTION: '상담 종료 후 1년 (삭제 요청 시 즉시 삭제)',
-  PRIVACY_AI_NOTE: '상담 내용 정리에 AI 서비스(Anthropic Claude)를 활용할 수 있습니다.'
-};
-</script>
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -248,6 +233,16 @@ details.more[open] summary::before{content:"− "}
 .empty{padding:40px 0;text-align:center;color:var(--muted)}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--dot);border-top-color:var(--strong);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* 첨부 파일 */
+.vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px dashed var(--dot);border-radius:12px;padding:14px;cursor:pointer;text-align:center;color:var(--strong)}
+.drop small{color:var(--muted);font-size:12.5px}
+.drop.over{background:var(--panel);border-color:var(--strong)}
+.flist{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px}
+.flist li{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:10px;padding:6px 10px;font-size:14px}
+.flist .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--strong)}
+.flist img,.flist .ficon{width:36px;height:36px;border-radius:6px;object-fit:cover;flex:none;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--muted)}
+.flist img{cursor:zoom-in}
 footer.foot{padding:30px 0 40px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 </head>
@@ -259,12 +254,26 @@ footer.foot{padding:30px 0 40px;color:var(--muted);font-size:12px;text-align:cen
    공통 도구
    ===================================================================== */
 const CFG = window.SPOTPLAN_CONFIG;
-const DEMO = !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY;
+const SB_KEY = CFG.SUPABASE_KEY || CFG.SUPABASE_ANON_KEY || '';
+const DEMO = !CFG.SUPABASE_URL || !SB_KEY;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowIso = () => new Date().toISOString();
-const rid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Math.random().toString(36).slice(2) + Date.now());
+const rid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+const extOf = name => { const m = String(name || '').match(/\.([A-Za-z0-9]{1,8})$/); return m ? m[1].toLowerCase() : 'bin'; };
+const isImageAtt = a => /^image\//.test(a.type || '') || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(a.name || '');
+/* 새 창에서 파일 열기 (팝업 차단을 피하려고 창을 먼저 연 뒤 주소를 넣음) */
+async function openFile(getUrl, name) {
+  const w = window.open('', '_blank');
+  try {
+    const url = await getUrl();
+    if (url.startsWith('data:')) { if (w) w.close(); const a = document.createElement('a'); a.href = url; a.download = name || 'file'; document.body.appendChild(a); a.click(); a.remove(); return; }
+    if (w) w.location = url; else location.href = url;
+  } catch (e) { if (w) w.close(); fail(e); }
+}
 const fmt = (iso, withTime = true) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -355,7 +364,7 @@ function dotsHtml(status) {
    데이터 계층 1: Supabase (운영 모드)
    ===================================================================== */
 function makeSupabaseDB() {
-  const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(CFG.SUPABASE_URL, SB_KEY);
   const T = t => sb.from(t);
   const chk = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
   /* 사진 파일은 다른 차수의 발전안이 같은 파일을 쓸 수 있으므로, 행을 지운 뒤 아무도 쓰지 않는 파일만 지움 */
@@ -389,8 +398,10 @@ function makeSupabaseDB() {
     async regenToken(id) { const t = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join(''); return chk(await T('projects').update({ token: t }).eq('id', id).select().single()); },
     async deleteProjects(ids) {
       const files = chk(await T('samples').select('storage_path').in('project_id', ids));
+      const atts = chk(await T('projects').select('attachments').in('id', ids)).flatMap(p => (p.attachments || []).map(a => a.path)).filter(Boolean);
       const del = chk(await T('projects').delete().in('id', ids).select('id'));
       await removeFiles(files);
+      for (let i = 0; i < atts.length; i += 100) { const { error } = await sb.storage.from('attachments').remove(atts.slice(i, i + 100)); if (error) console.warn('첨부 파일 삭제 실패', error); }
       if (del.length < ids.length) throw new Error('일부 프로젝트를 지우지 못했습니다(관리자 권한 필요).');
     },
 
@@ -407,6 +418,18 @@ function makeSupabaseDB() {
     async listLogs(pid) { return chk(await T('logs').select('*').eq('project_id', pid).order('at', { ascending: false }).limit(300)); },
     async addLog(pid, who, text) { chk(await T('logs').insert({ project_id: pid, who, text })); },
 
+    /* 고객 첨부: 비공개 버킷에 올리기만 가능. 한글 파일명은 저장 경로에 못 쓰므로 번호로 저장하고 원래 이름은 따로 기록 */
+    async uploadAttachment(file, folder, i) {
+      const path = `req/${folder}/${i}.${extOf(file.name)}`;
+      const { error } = await sb.storage.from('attachments').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+      if (error) throw new Error(`파일을 올리지 못했습니다: ${file.name} (${error.message})`);
+      return { path, name: file.name, size: file.size, type: file.type || '' };
+    },
+    async attachmentUrl(a, download) {
+      const { data, error } = await sb.storage.from('attachments').createSignedUrl(a.path, 3600, download ? { download: a.name } : undefined);
+      if (error) throw new Error('첨부 파일을 열 수 없습니다: ' + error.message);
+      return data.signedUrl;
+    },
     async upload(blob) {
       const path = `${new Date().toISOString().slice(0, 7)}/${rid()}.jpg`;
       chk(await sb.storage.from('samples').upload(path, blob, { contentType: 'image/jpeg', upsert: false }));
@@ -512,7 +535,7 @@ function makeDemoDB() {
       if (!PURPOSES.some(x => x.k === p.purpose)) throw new Error('invalid purpose');
       d.projects.push({ id, token: 'demo' + rid().replace(/-/g, ''), created_at: nowIso(), updated_at: nowIso(), status: 'requested', is_test: false,
         purpose: p.purpose, company: p.company || '', contact_name: p.contact_name, phone: p.phone, email: p.email, consent_at: nowIso(),
-        intake: p.intake || {}, source: p.source || '', request: {}, checks: [], request_shared: false, request_confirmed_at: null, consult: {}, studio_memo: '' });
+        intake: p.intake || {}, source: p.source || '', attachments: p.attachments || [], request: {}, checks: [], request_shared: false, request_confirmed_at: null, consult: {}, studio_memo: '' });
       addLog(d, id, '고객', '온라인 요청서 접수'); save();
     },
     async getProposal(token) { await wait(); return pub(token); },
@@ -560,6 +583,12 @@ function makeDemoDB() {
     async listLogs(pid) { return clone(db().logs.filter(l => l.project_id === pid).sort((a, b) => b.at.localeCompare(a.at))); },
     async addLog(pid, who, text) { const d = db(); addLog(d, pid, who, text); save(false); },
 
+    async uploadAttachment(file, folder, i) {
+      if (file.size > 1.5 * 1048576) throw new Error(`시험 모드에서는 1.5MB 이하 파일만 첨부할 수 있습니다: ${file.name} (실제 모드는 파일당 20MB)`);
+      await wait(200);
+      return { path: `req/${folder}/${i}.${extOf(file.name)}`, name: file.name, size: file.size, type: file.type || '', data: await blobToDataUrl(file) };
+    },
+    async attachmentUrl(a) { return a.data || ''; },
     async upload(blob) { const url = await blobToDataUrl(blob); if (url.length > 900000) throw new Error('시험 모드에서는 큰 사진을 저장할 수 없습니다(브라우저 저장 한도). 실제 모드에서는 문제없습니다.'); return { path: null, url }; },
     async fn(name, body) {
       await wait(700);
@@ -695,6 +724,12 @@ function renderRequestForm() {
         <div><label class="f req" for="f-phone">연락처</label><input type="tel" id="f-phone" name="tel" autocomplete="tel" inputmode="tel" placeholder="010-0000-0000" required></div>
         <div><label class="f req" for="f-email">이메일</label><input type="email" id="f-email" name="email" autocomplete="email" required></div>
       </div>
+      <div>
+        <label class="f">참고 파일 <span class="muted">(선택)</span></label>
+        <label class="drop" id="f-drop" for="f-files"><b>+ 파일 첨부</b><small>제품 사진, 기획안, 참고 이미지 등 · 최대 10개, 파일당 20MB</small></label>
+        <input type="file" id="f-files" multiple class="vh">
+        <ul class="flist" id="f-list"></ul>
+      </div>
       <details class="more">
         <summary>더 알려주시면 더 빨리 준비해 드려요 (선택)</summary>
         <div class="stack" style="margin-top:12px">
@@ -713,18 +748,40 @@ function renderRequestForm() {
       <div class="consent">
         <label><input type="checkbox" id="f-consent"> <span>개인정보 수집·이용에 동의합니다 <span class="accent">(필수)</span></span></label>
         <div style="margin-top:6px;padding-left:24px">
-          수집 항목: 성함, 업체명, 연락처, 이메일, 요청 내용 · 이용 목적: 촬영 상담, 견적·제안서 제공 · 보관 기간: ${esc(CFG.PRIVACY_RETENTION)}<br>
+          수집 항목: 성함, 업체명, 연락처, 이메일, 요청 내용, 첨부 파일 · 이용 목적: 촬영 상담, 견적·제안서 제공 · 보관 기간: ${esc(CFG.PRIVACY_RETENTION)}<br>
           ${esc(CFG.PRIVACY_AI_NOTE)} 동의하지 않으실 수 있으나, 이 경우 상담이 어렵습니다.
         </div>
       </div>
       <div class="hp" aria-hidden="true"><label>홈페이지<input type="text" id="f-hp" tabindex="-1" autocomplete="off"></label></div>
       <div id="ferr" class="notice warn hidden"></div>
       <button type="submit" class="btn primary big" id="f-submit">요청 보내기</button>
-      <p class="small muted" style="text-align:center">${esc(CFG.CONTACT_PROMISE)} 급하시면 ${esc(CFG.STUDIO_PHONE)}로 전화 주세요.</p>
+      <p class="small muted" style="text-align:center">급한 문의는 ${esc(CFG.STUDIO_PHONE)}로 전화 주세요.</p>
     </form>
   </main>
   <footer class="foot">${esc(CFG.STUDIO_NAME)} · 기획부터 촬영까지, 외주 없이 소속 인원이 직접 진행합니다</footer>`;
   bindTop();
+  /* 첨부 파일 */
+  const files = []; const MAXF = 10, MAXS = 20 * 1048576;
+  const drawFiles = () => {
+    $('#f-list').innerHTML = files.map((f, i) => `<li>${/^image\//.test(f.type) ? `<img data-prev="${i}" alt="">` : `<span class="ficon">${esc(extOf(f.name).toUpperCase().slice(0, 4))}</span>`}
+      <span class="fn">${esc(f.name)}</span><span class="small muted">${fmtSize(f.size)}</span><button type="button" class="btn ghost sm" data-rm="${i}" aria-label="빼기">✕</button></li>`).join('');
+    $$('#f-list [data-prev]').forEach(img => { img.src = URL.createObjectURL(files[+img.dataset.prev]); img.onload = () => URL.revokeObjectURL(img.src); });
+    $$('#f-list [data-rm]').forEach(b => b.onclick = () => { files.splice(+b.dataset.rm, 1); drawFiles(); });
+  };
+  const addFiles = list => {
+    for (const f of list) {
+      if (files.length >= MAXF) { toast(`파일은 최대 ${MAXF}개까지 첨부할 수 있습니다`); break; }
+      if (f.size > MAXS) { toast(`${f.name}: 20MB가 넘는 파일은 첨부할 수 없습니다`, 3500); continue; }
+      if (!f.size) continue;
+      if (!files.some(x => x.name === f.name && x.size === f.size)) files.push(f);
+    }
+    drawFiles();
+  };
+  $('#f-files').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  const drop = $('#f-drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => addFiles([...(e.dataTransfer.files || [])]));
   $$('.choice').forEach(b => b.onclick = () => {
     f.purpose = b.dataset.k; $$('.choice').forEach(x => x.classList.toggle('on', x === b));
     const n = $('#pnote');
@@ -750,8 +807,17 @@ function renderRequestForm() {
     put('reference', v('#f-ref')); put('contact_pref', pref ? pref.value : ''); put('memo', v('#f-memo'));
     const btn = $('#f-submit'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 보내는 중';
     try {
+      const attachments = [];
+      if (files.length) {
+        const folder = rid();
+        for (let i = 0; i < files.length; i++) {
+          btn.innerHTML = `<span class="spin"></span> 파일 올리는 중 (${i + 1}/${files.length})`;
+          attachments.push(await DB.uploadAttachment(files[i], folder, i));
+        }
+        btn.innerHTML = '<span class="spin"></span> 보내는 중';
+      }
       await DB.submitRequest({ purpose: f.purpose, company: v('#f-company'), contact_name: v('#f-name'), phone: v('#f-phone'), email: v('#f-email'),
-        consent: true, intake, source: src || v('#f-src') });
+        consent: true, intake, source: src || v('#f-src'), attachments });
       showDone();
     } catch (ex) {
       err.textContent = '전송하지 못했습니다. 잠시 후 다시 시도하시거나 전화로 문의해 주세요. (' + ex.message + ')'; err.classList.remove('hidden');
@@ -762,7 +828,7 @@ function renderRequestForm() {
     $('main').innerHTML = `<div style="padding:40px 0;text-align:center">
       <div style="display:inline-block;margin-bottom:18px">${logoSvg(44)}</div>
       <h1 class="page-title">요청이 접수되었습니다</h1>
-      <p style="margin:10px 0 4px">${esc(CFG.CONTACT_PROMISE)}</p>
+      <p style="margin:10px 0 4px">내용을 확인한 뒤 연락드리겠습니다.</p>
       <p class="muted">통화로 원하시는 방향을 함께 정리한 뒤, 온라인 제안서 링크를 보내드립니다.</p>
       <div class="panel" style="text-align:left;margin-top:24px"><b style="color:var(--strong)">진행 순서</b>
         <div style="margin-top:8px">${dotsHtml('requested')}</div>
@@ -851,7 +917,7 @@ function drawCustomer() {
 
   if (!d.rounds.length) {
     html += d.request_shared ? '' : `<section class="card" style="margin-top:8px"><h2 style="font-size:17px">요청이 접수되었습니다</h2>
-      <p class="muted" style="margin:6px 0 0">${esc(CFG.CONTACT_PROMISE)} 상담 후 이 페이지에서 제안서를 보실 수 있습니다.</p></section>`;
+      <p class="muted" style="margin:6px 0 0">상담 후 이 페이지에서 제안서를 보실 수 있습니다.</p></section>`;
   } else {
     html += `<section style="margin-top:26px"><p class="sec-title">제 안 서</p>
       <div class="rtabs">${d.rounds.map(r => `<button data-rid="${r.id}" class="${r.id === C.roundId ? 'on' : ''}">${r.n}차${r.rev > 1 ? ` v${r.rev}` : ''}${r.status === 'final' ? ' · 확정' : ''}</button>`).join('')}</div>`;
@@ -1019,6 +1085,7 @@ function drawList() {
       <div><div class="t">${esc(p.company || p.contact_name || '(이름 없음)')} <span class="muted" style="font-weight:400">${p.company ? esc(p.contact_name) : ''}</span></div>
         <div class="row small" style="margin-top:4px"><span class="chip line">${esc(purposeName(p.purpose))}</span>
         ${intakeN ? `<span class="chip ok" title="고객이 선택 항목을 작성함">상세 ${intakeN}개</span>` : ''}
+        ${(p.attachments || []).length ? `<span class="chip ok">첨부 ${p.attachments.length}</span>` : ''}
         ${p.intake && p.intake.contact_pref ? `<span class="chip">${esc(p.intake.contact_pref)} 선호</span>` : ''}
         ${p.consult && p.consult.active ? '<span class="chip warn">상담 중</span>' : ''}
         ${p.is_test ? '<span class="chip warn">테스트</span>' : ''}</div></div>
@@ -1151,6 +1218,9 @@ function drawRequest() {
         <dl class="kv"><dt>접수</dt><dd>${fmt(p.created_at)}</dd><dt>촬영 목적</dt><dd>${esc(purposeName(p.purpose))}</dd>
         ${Object.entries(intake).filter(([k]) => k !== 'manual').map(([k, v]) => `<dt>${esc(INTAKE_LABELS[k] || k)}</dt><dd>${esc(v)}</dd>`).join('')}
         <dt>방문 경로</dt><dd>${esc(p.source || '-')}</dd></dl>
+        ${(p.attachments || []).length ? `<p class="small muted" style="margin:14px 0 0">첨부 파일 ${p.attachments.length}개</p>
+          <ul class="flist" id="attlist">${p.attachments.map((a, i) => `<li>${isImageAtt(a) ? `<img data-att="${i}" alt="">` : `<span class="ficon">${esc(extOf(a.name).toUpperCase().slice(0, 4))}</span>`}
+            <span class="fn" title="${esc(a.name)}">${esc(a.name)}</span><span class="small muted">${fmtSize(a.size || 0)}</span><button class="btn sm" data-attopen="${i}">받기</button></li>`).join('')}</ul>` : ''}
         ${p.purpose === 'direction' ? '<div class="notice" style="margin-top:10px">기획 포함 패키지(유료) 대상</div>' : ''}
         ${p.purpose === 'rental' ? '<div class="notice" style="margin-top:10px">렌탈 문의 · 아워플레이스 예약 안내</div>' : ''}
       </div>
@@ -1206,8 +1276,18 @@ function markReq(field) {
   RQ.pendingFields.add(field); saveReq();
   const t = Date.now(); if (S.p.consult && S.p.consult.active && t - RQ.lastTypingPing > 1200) { RQ.lastTypingPing = t; ping('typing'); }
 }
+function bindAttachments() {
+  const atts = S.p.attachments || []; const urls = {};
+  $$('#attlist [data-att]').forEach(img => { const a = atts[+img.dataset.att];
+    DB.attachmentUrl(a, false).then(u => { urls[img.dataset.att] = u; img.src = u; }).catch(() => { img.replaceWith(Object.assign(document.createElement('span'), { className: 'ficon', textContent: 'IMG' })); });
+    img.onclick = () => { const imgs = atts.map((x, i) => ({ x, i })).filter(o => isImageAtt(o.x) && urls[o.i]);
+      openLightbox(imgs.map(o => ({ url: urls[o.i], caption: esc(o.x.name) })), Math.max(0, imgs.findIndex(o => String(o.i) === img.dataset.att))); };
+  });
+  $$('#attlist [data-attopen]').forEach(b => b.onclick = () => { const a = atts[+b.dataset.attopen]; openFile(() => DB.attachmentUrl(a, true), a.name); });
+}
 function bindRequest() {
   const p = S.p;
+  bindAttachments();
   $$('[data-field]').forEach(el => el.oninput = () => { p.request = p.request || {}; p.request[el.dataset.field] = el.value; markReq(el.dataset.field); });
   $('#memo').oninput = e => { p.studio_memo = e.target.value; markReq('memo'); };
   $$('#itemrows tr[data-i]').forEach(tr => $$('[data-ik]', tr).forEach(inp => inp.oninput = () => {
