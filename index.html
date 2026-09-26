@@ -1560,17 +1560,49 @@ async function addToRound(r, it, rows, what) {
   if (visibleToCustomer(r)) await logEdit(r, `${labels.map(l => l.label).join(', ')} 추가${what ? ' (' + what + ')' : ''}`);
   return added;
 }
+/* 아이템별 사진 검색어: 스튜디오 메모에 "[사진 검색어 A·i1234abcd] a, b, c" 형태로 저장 (고객에게 안 보임, 고객 확인 해제 안 됨) */
+const KW_RE = id => new RegExp('^\\[사진 검색어 [^\\]]*·' + id + '\\]\\s*(.*)$', 'm');
+function itemKw(it) { const m = (S.p.studio_memo || '').match(KW_RE(it.id)); return m ? m[1].split(',').map(x => x.trim()).filter(Boolean) : []; }
+async function saveItemKw(it, kws) {
+  const line = `[사진 검색어 ${it.letter}·${it.id}] ${kws.join(', ')}`;
+  const memo = S.p.studio_memo || '';
+  S.p.studio_memo = KW_RE(it.id).test(memo) ? memo.replace(KW_RE(it.id), line) : (memo.trim() + '\n' + line).trim();
+  RQ.pendingFields.add('memo'); await saveReq.flush();
+}
+async function makeItemKw(it) {
+  const q = S.p.request || {};
+  const text = `사진 검색어 만들기 요청입니다. 아래 촬영 아이템 하나만을 위한 무료 사진 사이트(Unsplash·Pexels) 영어 검색어를 search_keywords에 3~6개 적어 주세요. 제품 종류와 이 아이템의 연출·구도가 드러나야 하고, 다른 제품과 겹치는 일반적인 검색어는 피합니다. 나머지 칸은 비워 둡니다.
+제품: ${it.name}
+컷수: ${it.cuts ?? ''}
+촬영 컨셉: ${it.desc || ''}
+브랜드: ${q.brand || ''} / 업종: ${q.industry || ''} / 톤: ${q.tone || ''}`;
+  const { result } = await DB.fn('extract-call', { text });
+  const kws = (result && result.search_keywords || []).map(x => String(x).trim()).filter(Boolean).slice(0, 6);
+  if (!kws.length) throw new Error('검색어를 만들지 못했습니다. 직접 입력해 주세요.');
+  await saveItemKw(it, kws); return kws;
+}
 function photoSearchModal(r, it) {
-  const memoKw = ((S.p.studio_memo || '').match(/\[사진 검색어\]\s*(.+)/) || [])[1];
+  const memoKw = ((S.p.studio_memo || '').match(/^\[사진 검색어\]\s*(.+)$/m) || [])[1];
+  const projKw = memoKw ? memoKw.split(',').map(k => k.trim()).filter(Boolean) : [];
+  let kws = itemKw(it);
+  const chip = k => `<button type="button" class="chip line" style="cursor:pointer;border-style:solid" data-kw="${esc(k)}">${esc(k)}</button>`;
   const m = modal(`<div class="row between"><h2>${esc(it.letter)}. ${esc(it.name)} · 사진 검색</h2><button class="btn ghost sm" id="ps-x">닫기</button></div>
-    <form id="ps-f" class="row"><input type="search" id="ps-q" placeholder="영어 검색어가 결과가 많습니다 (예: serum bottle splash)" style="flex:1;min-width:200px" value="${esc(memoKw ? memoKw.split(',')[0].trim() : '')}">
+    ${it.desc ? `<p class="small muted" style="margin:-4px 0 8px;white-space:pre-line">${esc(it.desc)}</p>` : ''}
+    <form id="ps-f" class="row"><input type="search" id="ps-q" placeholder="영어 검색어가 결과가 많습니다 (예: serum bottle splash)" style="flex:1;min-width:200px" value="${esc(kws[0] || '')}">
       <select id="ps-src" style="width:auto"><option value="all">Unsplash+Pexels</option><option value="unsplash">Unsplash</option><option value="pexels">Pexels</option></select>
       <button class="btn primary" type="submit">검색</button></form>
-    ${memoKw ? `<div class="row small" style="margin-top:8px"><span class="muted">통화 정리 검색어:</span>${memoKw.split(',').map(k => `<button class="chip line" style="cursor:pointer;border-style:solid" data-kw="${esc(k.trim())}">${esc(k.trim())}</button>`).join('')}</div>` : ''}
-    <p class="small muted" style="margin:8px 0 0">누르면 바로 샘플로 추가됩니다. 무료 라이선스 사진이며 사진작가 표기가 자동으로 붙습니다.</p>
+    <div class="row small" style="margin-top:8px"><span class="muted">이 아이템 검색어:</span><span id="ps-ikw" class="row" style="gap:6px"></span><button type="button" class="btn ghost sm" id="ps-gen"></button></div>
+    ${projKw.length ? `<div class="row small" style="margin-top:6px"><span class="muted">전체 검색어:</span>${projKw.map(chip).join('')}</div>` : ''}
+    <p class="small muted" style="margin:8px 0 0">누르면 바로 샘플로 추가됩니다. 무료 라이선스 사진이며 사진작가 표기가 자동으로 붙습니다. 이미 이 차수에 쓴 사진은 흐리게 표시됩니다.</p>
     <div id="ps-res" class="pgrid"></div><div class="row" style="justify-content:center;margin-top:12px"><button class="btn hidden" id="ps-more">더 보기</button></div>`, true, () => drawProposal());
   let page = 1, q = '';
+  const drawKw = () => {
+    $('#ps-ikw', m.el).innerHTML = kws.length ? kws.map(chip).join('') : '<span class="muted">없음</span>';
+    $('#ps-gen', m.el).textContent = kws.length ? '검색어 다시 만들기' : 'Claude로 검색어 만들기';
+    $$('#ps-ikw [data-kw]', m.el).forEach(b => b.onclick = () => { $('#ps-q', m.el).value = b.dataset.kw; run(false); });
+  };
   $('#ps-x', m.el).onclick = () => m.close();
+  const used = () => new Set(S.samples.filter(s => s.round_id === r.id).map(s => s.image_url));
   const run = async (more) => {
     if (!more) { page = 1; q = $('#ps-q', m.el).value.trim(); $('#ps-res', m.el).innerHTML = ''; } else page++;
     if (!q) return;
@@ -1580,8 +1612,10 @@ function photoSearchModal(r, it) {
       load.remove();
       if ((notes || []).length && page === 1) toast(notes.join(' · '), 3500);
       if (!photos.length && page === 1) box.innerHTML = '<div class="empty" style="grid-column:1/-1">결과가 없습니다. 영어 검색어로 바꿔 보세요.</div>';
+      const u = used();
       for (const ph of photos) {
         const d = document.createElement('div'); d.className = 'pres'; d.innerHTML = `<img loading="lazy" src="${esc(ph.thumb)}" alt=""><div class="cap">${esc(ph.source)} · ${esc(ph.credit)}</div>`;
+        if (u.has(ph.full)) { d.style.opacity = '.4'; d.title = '이미 이 차수에 추가한 사진'; }
         d.onclick = async () => {
           if (d.classList.contains('added') || d.dataset.busy) return; d.dataset.busy = '1';
           try {
@@ -1598,8 +1632,16 @@ function photoSearchModal(r, it) {
   $('#ps-f', m.el).onsubmit = e => { e.preventDefault(); run(false); };
   $('#ps-more', m.el).onclick = () => run(true);
   $$('[data-kw]', m.el).forEach(b => b.onclick = () => { $('#ps-q', m.el).value = b.dataset.kw; run(false); });
+  const gen = async () => {
+    const b = $('#ps-gen', m.el); b.disabled = true; b.innerHTML = '<span class="spin"></span> 만드는 중';
+    try { kws = await makeItemKw(it); drawKw(); $('#ps-q', m.el).value = kws[0]; run(false); }
+    catch (e) { fail(e); drawKw(); } finally { b.disabled = false; }
+  };
+  $('#ps-gen', m.el).onclick = gen;
+  drawKw();
   $('#ps-q', m.el).focus();
-  if ($('#ps-q', m.el).value) run(false);
+  if (kws.length) run(false);
+  else if (!DEMO) gen();
 }
 function uploadSamples(r, it, kind) {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
