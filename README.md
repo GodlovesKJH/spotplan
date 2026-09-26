@@ -1,4 +1,4 @@
-# SPOTPLAN (v1.1)
+# SPOTPLAN (v1.2)
 
 스팟스튜디오의 **온라인 요청서 · 회차별 제안서 · 촬영팀 인계 · 촬영 결과 납품** 웹앱입니다.
 
@@ -13,6 +13,7 @@
   - 상담 모드에서 고객 화면에 실시간으로 반영합니다.
   - 다음 차수 만들기, 최종 확정, 데이터 삭제를 합니다.
   - (v1.1) 확정안을 **촬영팀에 인계**하고, 결과 사진을 검수해 **고객에게 공개**합니다. 계약금·중도금·잔금 입금을 기록합니다.
+  - (v1.2) **계정 관리**: 실무팀·촬영팀 로그인 계정을 앱에서 직접 만들고 권한·비밀번호·사용 중지를 관리합니다.
 - **촬영팀** (v1.1)
   - 같은 주소로 로그인하면 자기에게 인계된 촬영만 봅니다(참고 사진·설명·고객 의견).
   - 컷별로 결과 사진을 올리고 “업로드 완료”를 알립니다.
@@ -20,14 +21,16 @@
 | 파일 | 역할 |
 |---|---|
 | `index.html` | 화면 틀·디자인(CSS). GitHub Pages로 배포 |
-| `js/*.js` | 앱 동작 (core 공통 · demo 시험 모드 · ui 화면 틀 · customer 고객 · studio 스튜디오 · proposal 제안서 · shoot 촬영팀·납품·결제). 고친 뒤 `index.html`의 `?v=` 값을 올리세요 |
+| `js/*.js` | 앱 동작 (core 공통 · demo 시험 모드 · ui 화면 틀 · customer 고객 · studio 스튜디오 · proposal 제안서 · shoot 촬영팀·납품·결제 · accounts 계정 관리). 고친 뒤 `index.html`의 `?v=` 값을 올리세요 |
 | `config.js` | 설정값 (Supabase 주소·키, 스튜디오 이름·전화번호, 개인정보 문구) |
 | `SETUP_GUIDE.md` | Supabase 설정 가이드 (처음 쓰는 분용) |
-| `SETUP_V1.1.md` | v1.1 추가 설정 (SQL 실행, 촬영팀 계정) |
+| `SETUP_V1.1.md` | v1.1 추가 설정 (SQL 실행) |
+| `SETUP_V1.2.md` | v1.2 추가 설정 (계정 관리용 Edge Function `admin-users` 올리기) |
 | `supabase/setup.sql` | 데이터베이스·권한·고객용 함수·사진 저장소 설정 (v1.0) |
 | `supabase/update_v1.1.sql` | v1.1 추가 설정(촬영팀·인계·납품·결제). setup.sql 다음에 실행 |
 | `supabase/functions/extract-call/index.ts` | 통화 텍스트 → 요청서 정리 (Claude API) |
 | `supabase/functions/photo-search/index.ts` | 무료 사진 검색 (Unsplash·Pexels) |
+| `supabase/functions/admin-users/index.ts` | (v1.2) 계정 관리: 로그인 계정 만들기·권한·비밀번호 재설정·사용 중지·삭제 (관리자만) |
 
 ## 주소
 
@@ -57,8 +60,8 @@
 
 1. Supabase 가입 → 서울 리전 프로젝트 만들기 (운영자 명의 권장)
 2. SQL Editor에서 `supabase/setup.sql` 실행 (맨 아래 관리자 이메일 수정), 이어서 `supabase/update_v1.1.sql` 실행
-3. 직원 로그인 계정 만들기, 공개 가입 끄기
-4. Edge Function 2개(`extract-call`, `photo-search`) 올리고 "Verify JWT with legacy secret" 끄기
+3. 첫 관리자(실장) 로그인 계정 1개만 Authentication에서 만들기, 공개 가입 끄기 (나머지 계정은 앱의 **계정 관리**에서 만듦)
+4. Edge Function 3개(`extract-call`, `photo-search`, `admin-users`) 올리고 "Verify JWT with legacy secret" 끄기
 5. Secrets에 `ANTHROPIC_API_KEY`, `UNSPLASH_ACCESS_KEY`, `PEXELS_API_KEY` 저장
 6. `config.js`의 `SUPABASE_URL`, `SUPABASE_KEY`(Publishable key) 채우기
 7. GitHub Pages 켜기
@@ -115,4 +118,4 @@
 - 고객 링크를 아는 사람은 누구나 제안서를 볼 수 있습니다. 유출이 의심되면 **⋯ → 고객 링크 재발급**을 누르세요.
 - 사진 검색 결과는 Unsplash·Pexels 주소를 그대로 씁니다(각 사이트 규정). 업로드한 사진만 Supabase 저장소에 저장됩니다.
 - 촬영 결과 사진은 긴 변 2560px JPG(확인·내려받기용)로 줄여 저장합니다. 원본·RAW는 앱에 넣지 않고 “원본 전체 받기 링크”(드라이브 등)로 전달합니다.
-- 촬영팀 로그인 계정은 앱의 촬영팀 메뉴 등록 + Supabase Authentication 사용자 추가를 둘 다 해야 합니다(SETUP_V1.1.md).
+- 직원·촬영팀 계정은 관리자가 앱의 **계정 관리**에서 만듭니다(Edge Function `admin-users` 필요, SETUP_V1.2.md). 사용 중지한 계정은 이미 열린 화면이 최대 1시간 안에 끊깁니다.

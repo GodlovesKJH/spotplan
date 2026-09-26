@@ -263,19 +263,36 @@ details.more[open] summary::before{content:"− "}
 .jref .lbl{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.7);color:#fff;font-size:13px;font-weight:700;padding:2px 9px;border-radius:99px}
 @media (max-width:640px){.jshot{grid-template-columns:1fr}}
 header.top .ver{font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:-4px;white-space:nowrap}
+/* v1.2 계정 관리 */
+.kinds{display:flex;flex-direction:column;gap:4px;margin-top:12px}
+.acc-new{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:900px){.acc-new{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.acc-new{grid-template-columns:1fr}}
+.acc-list{display:flex;flex-direction:column;margin-top:8px}
+.acc-row{display:grid;grid-template-columns:minmax(160px,1.2fr) 140px minmax(150px,1fr) 150px 280px;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.acc-row:first-child{border-top:0}
+.acc-row.off .acc-who input{color:var(--muted)}
+.acc-row input,.acc-row select{min-height:36px;padding:6px 10px;font-size:14px}
+.acc-crew{display:flex;gap:6px}.acc-crew.na{visibility:hidden}
+.acc-mail{margin-top:2px;word-break:break-all}
+.acc-acts{display:flex;gap:4px;flex-wrap:nowrap;justify-content:flex-end}
+@media (max-width:900px){.acc-row{grid-template-columns:1fr 1fr}.acc-who{grid-column:1/-1}.acc-crew.na{display:none}.acc-acts{grid-column:1/-1;justify-content:flex-start;flex-wrap:wrap}}
+@media (max-width:640px){.top .wrap{flex-wrap:wrap;height:auto;min-height:58px;padding-top:8px;padding-bottom:8px;row-gap:6px}
+  .brand span{display:none}.nav{margin-left:0;order:5;width:100%;overflow-x:auto}.nav a{white-space:nowrap}.banner{top:0}}
 footer.foot{padding:30px 0 40px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 </head>
 <body>
 <div id="app"><div class="empty"><span class="spin"></span></div></div>
 
-<script src="js/core.js?v=1.1"></script>
-<script src="js/demo.js?v=1.1"></script>
-<script src="js/ui.js?v=1.1"></script>
-<script src="js/customer.js?v=1.1"></script>
-<script src="js/studio.js?v=1.1"></script>
-<script src="js/proposal.js?v=1.1"></script>
-<script src="js/shoot.js?v=1.1"></script>
+<script src="js/core.js?v=1.2"></script>
+<script src="js/demo.js?v=1.2"></script>
+<script src="js/ui.js?v=1.2"></script>
+<script src="js/customer.js?v=1.2"></script>
+<script src="js/studio.js?v=1.2"></script>
+<script src="js/proposal.js?v=1.2"></script>
+<script src="js/shoot.js?v=1.2"></script>
+<script src="js/accounts.js?v=1.2"></script>
 <script>route();</script>
 </body>
 </html>
