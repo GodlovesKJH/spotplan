@@ -5,8 +5,8 @@
    자세한 방법: SETUP_GUIDE.md 8장
    ===================================================================== */
 window.SPOTPLAN_CONFIG = {
-  SUPABASE_URL: '',        // 예: https://abcdefgh.supabase.co
-  SUPABASE_KEY: '',        // Publishable key (sb_publishable_… 로 시작). 공개돼도 되는 키입니다. Secret key는 절대 넣지 마세요.
+  SUPABASE_URL: 'https://ornuemfdueukfedkehyh.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_0nOlUcOaXbh-G-Mfkb_apw_3SIvpjEC', // Publishable key (sb_publishable_… 로 시작). 공개돼도 되는 키입니다. Secret key는 절대 넣지 마세요.
   STUDIO_NAME: '스팟스튜디오',
   STUDIO_PHONE: '02-6080-9777',
   RENTAL_URL: '',          // 아워플레이스 스팟스튜디오 페이지 주소 (비우면 안내 문구만 표시)
