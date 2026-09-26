@@ -8,14 +8,14 @@ async function renderStudio() {
   if (!sess) return renderLogin();
   if (!S.me) {
     try { S.me = await DB.whoami(); } catch (e) { S.me = null; }
-    if (!S.me) { app.innerHTML = topbar('studio') + `<main class="wrap narrow" style="max-width:520px;padding-top:40px"><div class="card"><h2>등록된 직원이 아닙니다</h2>
-      <p class="muted">${esc(sess.user && sess.user.email)} 계정은 스튜디오 직원 목록(staff)에 없습니다. 관리자에게 등록을 요청하세요.</p><button class="btn" id="lo2">로그아웃</button></div></main>`;
+    if (!S.me) { app.innerHTML = topbar('studio') + `<main class="wrap narrow" style="max-width:520px;padding-top:40px"><div class="card"><h2>권한이 없는 계정입니다</h2>
+      <p class="muted">${esc(sess.user && sess.user.email)} 계정은 권한이 없거나 사용 중지되었습니다. 실장에게 <b>계정 관리</b>에서 권한을 받으세요.</p><button class="btn" id="lo2">로그아웃</button></div></main>`;
       $('#lo2').onclick = async () => { await DB.signOut(); route(); }; return; }
     if (!['admin', 'staff', 'crew'].includes(S.me.role)) S.me.role = 'staff';
   }
   const h = location.hash;
   if (S.me.role === 'crew') { const j = h.match(/^#\/studio\/job\/([^/]+)/); return j ? renderCrewJob(j[1]) : renderCrewHome(); }
-  if (h.startsWith('#/studio/crew')) return renderCrewAdmin();
+  if (h.startsWith('#/studio/accounts') || h.startsWith('#/studio/crew')) return renderAccounts();
   const m = h.match(/^#\/studio\/p\/([^/]+)(?:\/(\w+))?/);
   if (m) return renderDetail(m[1], m[2] || 'request');
   if (h.startsWith('#/studio/data')) return renderDataAdmin();
@@ -62,6 +62,7 @@ function drawList() {
   const match = (p, k) => k === 'all' ? true : k === 'closed' ? (p.status === 'cancelled' || p.is_test)
     : k === 'active' ? !['cancelled', 'done'].includes(p.status) : k === 'confirmed' ? ['confirmed', 'shooting'].includes(p.status) : p.status === k;
   F.forEach(([k]) => counts[k] = S.list.filter(p => match(p, k)).length);
+  if (!$('#flt')) return; /* 다른 화면으로 이동한 뒤 늦게 도착한 목록은 무시 */
   $('#flt').innerHTML = F.map(([k, l]) => `<button data-k="${k}" class="${S.filter === k ? 'on' : ''}">${l} ${counts[k]}</button>`).join('');
   $$('#flt button').forEach(b => b.onclick = () => { S.filter = b.dataset.k; drawList(); });
   const q = ($('#q').value || '').trim().toLowerCase();
