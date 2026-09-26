@@ -51,11 +51,13 @@ function makeDemoDB() {
       ],
       logs: [{ id: 1, project_id: pid, at: t, who: '시스템', text: '시험용 예시 프로젝트 생성' }],
       crew: [{ email: 'crew@spotstudio.test', name: '박촬영', phone: '', part: '사진', active: true, memo: '시험용 촬영팀 계정', created_at: t }],
-      handoffs: [], results: [],
+      handoffs: [], results: [], staff: [],
+      accounts: [{ email: 'crew@spotstudio.test', active: true, last: null }],
     };
   }
   function load() { if (mem) return mem; try { mem = JSON.parse(store.get(KEY)); } catch { mem = null; } if (!mem || !mem.projects) { mem = seed(); save(false); }
-    if (!mem.crew) mem.crew = seed().crew; if (!mem.handoffs) mem.handoffs = []; if (!mem.results) mem.results = []; return mem; }
+    if (!mem.crew) mem.crew = seed().crew; if (!mem.handoffs) mem.handoffs = []; if (!mem.results) mem.results = [];
+    if (!mem.staff) mem.staff = []; if (!mem.accounts) mem.accounts = seed().accounts; return mem; }
   function save(ping = true) { store.set(KEY, JSON.stringify(mem)); if (ping && bc) bc.postMessage({ name: '__projects' }); }
   window.addEventListener('storage', e => { if (e.key === KEY) mem = null; });
   const db = () => { mem = null; return load(); };
@@ -103,11 +105,47 @@ function makeDemoDB() {
       pr.request_confirmed_at = nowIso(); addLog(d, pr.id, '고객', '요청서 내용 "이대로 확인"'); touch(d, pr.id); save(); },
 
     async session() { return store.get(UKEY) ? { user: { email: store.get(UKEY) } } : null; },
-    async signIn(email) { if (!email) throw new Error('이메일을 입력하세요'); store.set(UKEY, email); },
+    async signIn(email) { if (!email) throw new Error('이메일을 입력하세요'); const a = db().accounts.find(x => x.email === email.trim().toLowerCase());
+      if (a && !a.active) throw new Error('사용 중지된 계정입니다. 실장에게 문의하세요.'); if (a) { a.last = nowIso(); save(false); } store.set(UKEY, email); },
     async signOut() { store.del(UKEY); },
-    async whoami() { const e = store.get(UKEY); if (!e) return null;
-      const c = db().crew.find(x => x.email === e.toLowerCase() && x.active); if (c) return { email: c.email, name: c.name, role: 'crew', part: c.part };
+    async whoami() { const e = store.get(UKEY); if (!e) return null; const d = db();
+      const st = d.staff.find(x => x.email === e.toLowerCase()); if (st) return { email: st.email, name: st.name, role: st.role };
+      const c = d.crew.find(x => x.email === e.toLowerCase() && x.active); if (c) return { email: c.email, name: c.name, role: 'crew', part: c.part };
       return { email: e, name: '실장(시험)', role: 'admin' }; },
+    async changePassword(pw) { if (String(pw).length < 8) throw new Error('비밀번호는 8자 이상으로 정해 주세요.'); },
+    /* 시험 모드용 계정 관리 (실제 운영은 Edge Function admin-users) */
+    async adminUsers(action, b = {}) {
+      await wait(); const d = db(); const me = (store.get(UKEY) || '').toLowerCase(); const e = String(b.email || '').trim().toLowerCase();
+      const kindOf = x => { const st = d.staff.find(r => r.email === x); return st ? st.role : d.crew.some(r => r.email === x) ? 'crew' : null; };
+      const admins = () => d.staff.filter(r => r.role === 'admin').length + 1; /* 시험 모드: 로그인한 사람도 관리자로 셈 */
+      const setKind = (kind, f) => { const oc = d.crew.find(r => r.email === e), os = d.staff.find(r => r.email === e); const name = f.name ?? os?.name ?? oc?.name ?? '';
+        if (kind === 'crew') { const row = { email: e, name, part: f.part ?? oc?.part ?? '사진', phone: f.phone ?? oc?.phone ?? '', active: f.active ?? oc?.active ?? true, memo: oc?.memo || '', created_at: oc?.created_at || os?.created_at || nowIso() };
+          d.crew = d.crew.filter(r => r.email !== e).concat(row); d.staff = d.staff.filter(r => r.email !== e); }
+        else { const row = { email: e, name, role: kind, created_at: os?.created_at || oc?.created_at || nowIso() }; d.staff = d.staff.filter(r => r.email !== e).concat(row); d.crew = d.crew.filter(r => r.email !== e); } };
+      const pw = x => { if (String(x || '').length < 8) throw new Error('비밀번호는 8자 이상으로 정해 주세요.'); };
+      if (action === 'list') {
+        const list = [...d.staff.map(r => ({ ...r, kind: r.role, part: '', phone: '' })), ...d.crew.map(r => ({ ...r, kind: 'crew' }))].map(r => { const a = d.accounts.find(x => x.email === r.email);
+          return { email: r.email, name: r.name, kind: r.kind, part: r.part, phone: r.phone, has_login: !!a, active: (r.kind !== 'crew' || r.active) && (!a || a.active), last_sign_in_at: a ? a.last : null, created_at: r.created_at }; });
+        if (me && !list.some(r => r.email === me)) list.unshift({ email: me, name: '실장(시험)', kind: 'admin', part: '', phone: '', has_login: true, active: true, last_sign_in_at: nowIso(), created_at: nowIso() });
+        const o = { admin: 0, staff: 1, crew: 2 }; list.sort((a, b) => o[a.kind] - o[b.kind]); return { me, list: clone(list) };
+      }
+      if (!/^\S+@\S+\.\S+$/.test(e)) throw new Error('이메일 형식을 확인하세요.');
+      if (action === 'create') { if (!['admin', 'staff', 'crew'].includes(b.kind)) throw new Error('권한을 골라 주세요.'); pw(b.password);
+        if (e === me && b.kind !== 'admin') throw new Error('자기 자신의 관리자 권한은 뺄 수 없습니다.');
+        const ex = d.accounts.find(x => x.email === e); if (ex) ex.active = true; else d.accounts.push({ email: e, active: true, last: null });
+        setKind(b.kind, { name: b.name || '', part: b.part || undefined, phone: b.phone || '', active: true }); save(); return { ok: true, existed: !!ex }; }
+      if (action === 'update') { const cur = kindOf(e); const kind = b.kind || cur || 'staff';
+        if (e === me && kind !== 'admin') throw new Error('자기 자신의 관리자 권한은 뺄 수 없습니다.');
+        if (e === me && b.active === false) throw new Error('자기 자신은 사용 중지할 수 없습니다.');
+        if (cur === 'admin' && kind !== 'admin' && admins() <= 1) throw new Error('관리자가 최소 1명은 있어야 합니다.');
+        const f = {}; ['name', 'part', 'phone'].forEach(k => { if (b[k] != null) f[k] = String(b[k]).trim(); }); setKind(kind, f);
+        if (typeof b.active === 'boolean') { const a = d.accounts.find(x => x.email === e); if (a) a.active = b.active; const c = d.crew.find(r => r.email === e); if (c) c.active = b.active; }
+        save(); return { ok: true }; }
+      if (action === 'password') { pw(b.password); if (!d.accounts.some(x => x.email === e)) throw new Error('로그인 계정이 없습니다. 먼저 계정을 만드세요.'); return { ok: true }; }
+      if (action === 'delete') { if (e === me) throw new Error('자기 자신은 삭제할 수 없습니다.');
+        d.staff = d.staff.filter(r => r.email !== e); d.crew = d.crew.filter(r => r.email !== e); d.accounts = d.accounts.filter(x => x.email !== e); save(); return { ok: true }; }
+      throw new Error('알 수 없는 요청입니다.');
+    },
 
     async listProjects() { await wait(); return clone(db().projects).sort((a, b) => b.updated_at.localeCompare(a.updated_at)); },
     async getProject(id) { const p = db().projects.find(x => x.id === id); if (!p) throw new Error('프로젝트를 찾을 수 없습니다'); return clone(p); },
