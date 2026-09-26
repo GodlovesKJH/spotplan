@@ -1,6 +1,7 @@
 // SPOTPLAN · 무료 사진 검색 (Unsplash · Pexels)
 // Supabase 대시보드 → Edge Functions → Deploy a new function → Via Editor
 // 함수 이름: photo-search  /  이 파일 전체를 붙여넣고 Deploy
+// 배포 후 함수 설정에서 "Verify JWT with legacy secret"은 끕니다(직원 확인은 아래 코드가 직접 함)
 // 필요한 Secrets: UNSPLASH_ACCESS_KEY, PEXELS_API_KEY (하나만 있어도 됨)
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -11,6 +12,16 @@ const CORS = {
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
+// 새 키 방식(publishable key)과 예전 방식(anon key) 모두 지원
+function publicKey(): string {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+    const k = keys.default ?? Object.values(keys)[0];
+    if (k) return String(k);
+  } catch { /* 무시 */ }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+}
 
 const UTM = "utm_source=spotplan&utm_medium=referral";
 
@@ -56,7 +67,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, publicKey(), {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
   const { data: isStaff, error } = await sb.rpc("is_staff");

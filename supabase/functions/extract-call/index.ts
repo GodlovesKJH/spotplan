@@ -1,6 +1,7 @@
 // SPOTPLAN · 통화 텍스트 → 요청서 정리 (Claude API)
 // Supabase 대시보드 → Edge Functions → Deploy a new function → Via Editor
 // 함수 이름: extract-call  /  이 파일 전체를 붙여넣고 Deploy
+// 배포 후 함수 설정에서 "Verify JWT with legacy secret"은 끕니다(직원 확인은 아래 코드가 직접 함)
 // 필요한 Secrets: ANTHROPIC_API_KEY (선택: CLAUDE_MODEL)
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -11,6 +12,16 @@ const CORS = {
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
+// 새 키 방식(publishable key)과 예전 방식(anon key) 모두 지원
+function publicKey(): string {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+    const k = keys.default ?? Object.values(keys)[0];
+    if (k) return String(k);
+  } catch { /* 무시 */ }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+}
 
 const SYSTEM = `당신은 제품촬영 스튜디오 '스팟스튜디오'의 상담 기록 정리 담당입니다.
 실장과 고객의 통화 내용(메모 또는 녹음 받아쓰기)을 읽고 촬영 요청서 칸에 나눠 정리합니다.
@@ -66,7 +77,7 @@ Deno.serve(async (req) => {
 
   // 스튜디오 직원만 사용 가능
   const auth = req.headers.get("Authorization") ?? "";
-  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, publicKey(), {
     global: { headers: { Authorization: auth } },
   });
   const { data: isStaff, error: staffErr } = await sb.rpc("is_staff");
